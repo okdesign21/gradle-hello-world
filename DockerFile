@@ -1,0 +1,17 @@
+# no root user
+# multi stage
+
+FROM gradle:jdk21 AS build
+
+WORKDIR /app
+COPY . /app
+
+RUN ./gradlew build --no-daemon
+#sign
+
+FROM openjdk:21-jre-slim
+WORKDIR /app
+
+COPY --from=build /app/build/libs/*-all.jar app.jar
+#get from github artifact??
+ENTRYPOINT ["java", "-jar", "app.jar"]
