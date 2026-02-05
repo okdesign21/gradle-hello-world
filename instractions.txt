@@ -6,7 +6,7 @@ d. What is this gradle wrapper everyone keeps mentioning?
 
 4. Change the code:
     a. Add your name to the "Hello World" message.
-b. Set Jar version to 1.0.0
+    b. Set Jar version to 1.0.0
 
 5. Create a simple pipeline which would do the following actions:
 a. Increase the Patch part of the jar version ( 1.0.0 - > 1.0.1-> …) automatically

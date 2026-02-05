@@ -1,15 +1,14 @@
 plugins {
-    kotlin("jvm") version "1.6.20"
+    kotlin("jvm") version "2.3.0"
     id("application")
     id("java")
     id("idea")
 
     // This is used to create a GraalVM native image
-    id("org.graalvm.buildtools.native") version "0.9.11"
+    id("org.graalvm.buildtools.native") version "0.11.1"
 
     // This creates a fat JAR
-    id("com.github.johnrengelman.shadow") version "7.1.2"
-}
+    id("com.gradleup.shadow") version "9.3.1"}
 
 group = "com.ido"
 version = "1.0.0"
