@@ -9,117 +9,212 @@ on:
   workflow_dispatch:
     # manual trigger for testing, like pull_request
 
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '21'
+  IMAGE_NAME: KeplerHello
+  VCS_REF: ${{ github.sha }}
+
 jobs:
-  
-  lint:
+  megalinter:
     runs-on: ubuntu-latest
-    # gradle linting
-    # dockerfile linting
-    # md linting
-    # MegaLinter?
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: MegaLinter
+        uses: oxsecurity/megalinter/flavors/java@v9.3.0
+        env:
+          VALIDATE_ALL_CODEBASE: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   security-check:
     runs-on: ubuntu-latest
-    # Trivy scan
-    # TruffleHog scan
+    permissions:
+      contents: read
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: 'repo'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+          output: 'trivy-report.txt'
+
+      - name: TruffleHog Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --results=verified,unknown --fail
 
   tests:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-        cache: 'gradle'
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
 
-    - name: Run tests
-      run: ./gradlew test --no-daemon
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Run tests
+        run: ./gradlew test --no-daemon
 
   build-and-sign:
     runs-on: ubuntu-latest
-    needs: ['lint', 'security-check', 'tests']
+    needs: ['security-check', 'megalinter', 'tests']
+    outputs:
+      version: ${{ steps.bump.outputs.new-version }}
     if: github.ref == 'refs/heads/master'
-    # Sign JAR
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: ${{ env.JAVA_VERSION }}
           cache: 'gradle'
+      
+      - name: Setup Gradle to generate and submit dependency graphs
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          dependency-graph: generate-and-submit
 
+        #TODO: fix, not updating build.gradle.kts 
       - name: Bump version
-        run: #
+        id: bump
+        uses: Plugily-Projects/version-bump-action@v6
+        with:
+            github-token: ${{ secrets.GITHUB_TOKEN }}
+            auto-version-bump: true
+            auto-version-bump-release: true
 
-      - name: Commit version bump [skip ci]
-        run: #
+        #TODO: pass cosign key and password via GitHub Secrets
+      - name: Build Docker image until cosign
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          target: cosign
+          push: false
+          tags: ${{ env.IMAGE_NAME }}-cosign:latest
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
+      - name: Extract artifacts from cosign image
+        run: |
+          docker create --name extract ${{ env.IMAGE_NAME }}-cosign:latest
+          mkdir -p build/libs build/sbom
+          docker cp extract:/app/app.jar ./build/libs/app.jar
+          docker cp extract:/app/sbom.spdx.json ./build/sbom/sbom.spdx.json
+          docker cp extract:/app/app.jar.sig ./build/libs/app.jar.sig
+          docker rm extract
 
-      - name: Build with Gradle
-        run: ./gradlew build --no-daemon
+      - name: Build final image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: false
+          tags: ${{ env.IMAGE_NAME }}:latest
 
-      - name: Create SBOM
-        run: ./gradlew createSbom --no-daemon
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:latest
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
 
-      - name: Sign files with Cosign
-        uses: docker://gcr.io/projectsigstore/cosign:latest
+      - name: Save Docker image as tar
+        run: docker save ${{ env.IMAGE_NAME }}:latest -o /tmp/docker-image.tar
 
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/docker-image.tar
+          retention-days: 1
+            
       - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
           name: jar-artifact
-          path: build/libs/*.jar
+          path: build/libs/*-all.jar
+
+      - name: Upload JAR Signature
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-signature-artifact
+          path: build/libs/app.jar.sig
 
       - name: Upload SBOM
         uses: actions/upload-artifact@v4
         with:
           name: sbom-artifact
-          path: build/sbom/*.spdx.json
+          path: build/sbom/sbom.spdx.json
 
-
-  docker_publish:
+  publish:
     runs-on: ubuntu-latest
     needs: build-and-sign
     if: github.ref == 'refs/heads/master'
+    env:
+      VERSION: ${{ needs.build-and-sign.outputs.version }}
     steps:
-        - name: Download JAR artifact
-          uses: actions/download-artifact@v4
-          with:
-            name: jar-artifact
-            path: build/libs/
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
 
-        - name: Download SBOM artifact
-          uses: actions/download-artifact@v4
-          with:
-            name: sbom-artifact
-            path: build/sbom/
-    # Build Docker image
-    # Trivy scan
-    # publish SBOM
-    # Push to Docker Hub
+      - name: Load Docker image
+        run: docker load -i /tmp/docker-image.tar
 
-  dependency-submission:
+      - name: DockerHub login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ vars.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tag and push image to DockerHub
+        env:
+          DOCKERHUB_REPO: ${{ vars.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}
+        run: |
+          docker tag ${{ env.IMAGE_NAME }}:latest ${{ env.DOCKERHUB_REPO }}:latest
+          docker tag ${{ env.IMAGE_NAME }}:latest ${{ env.DOCKERHUB_REPO }}:${{ env.VERSION }}
+          docker tag ${{ env.IMAGE_NAME }}:latest ${{ env.DOCKERHUB_REPO }}:${{ env.VCS_REF }}
+          docker push ${{ env.DOCKERHUB_REPO }}:latest
+          docker push ${{ env.DOCKERHUB_REPO }}:${{ env.VERSION }}
+          docker push ${{ env.DOCKERHUB_REPO }}:${{ env.VCS_REF }}
+  
+  call-home:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
+    needs: publish
+    if: github.ref == 'refs/heads/master'
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        
-    - name: Generate and submit dependency graph
-      uses: gradle/actions/dependency-submission@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
-      
+      - name: call home
+        env:
+          IMAGE: docker.io/${{ vars.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}:latest
+        run: |
+          docker pull "$IMAGE"
+          OUTPUT=$(docker run --rm "$IMAGE")
+          echo "Container output: $OUTPUT"
+          if echo "$OUTPUT" | grep -q "Hello World! I'm OrInbar"; then
+            echo "come and get me"
+          else
+            exit 1
+          fi

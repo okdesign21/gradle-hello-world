@@ -5,7 +5,7 @@ c. How does gradle work?
 d. What is this gradle wrapper everyone keeps mentioning?
 
 4. Change the code:
-    a. Add your name to the "Hello World" message.
+    a. Add your name to the "Hello World" message. 
     b. Set Jar version to 1.0.0
 
 5. Create a simple pipeline which would do the following actions:
@@ -28,6 +28,7 @@ Gradle install guide:
 https://docs.gradle.org/current/userguide/installation.html#ex-installing-manually
 Good Luck!
 
+maybe:
 - pre commit
 - readme
-- tests?
+- tests

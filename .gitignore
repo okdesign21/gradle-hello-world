@@ -22,3 +22,6 @@ gradle-app.setting
 
 # MacOS files
 .DS_Store
+
+# MegaLinter
+megalinter-reports/
