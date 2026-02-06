@@ -19,12 +19,10 @@ ARG COSIGN_PASSWORD
 ENV COSIGN_PASSWORD=${COSIGN_PASSWORD}
 RUN test -n "$COSIGN_KEY" || (echo "ERROR: COSIGN_KEY is required" && exit 1) && \
     test -n "$COSIGN_PASSWORD" || (echo "ERROR: COSIGN_PASSWORD is required" && exit 1)
-RUN echo "$COSIGN_KEY" > /tmp/cosign.key && \
-    cosign sign-blob --yes \
-      --key /tmp/cosign.key \
+RUN echo "$COSIGN_KEY" | cosign sign-blob --yes \
+      --key /dev/stdin \
       --output-signature=app.jar.sig \
-      app.jar && \
-    rm -f /tmp/cosign.key
+      app.jar
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
