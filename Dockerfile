@@ -10,7 +10,7 @@ WORKDIR /app
 COPY --from=build /app/build/libs/*-all.jar app.jar
 RUN trivy fs --format spdx-json --output /app/sbom.spdx.json /app/app.jar
 
-FROM bitnami/cosign:3.0.4 AS cosign
+FROM bitnami/cosign:latest AS cosign
 WORKDIR /app
 COPY --from=build /app/build/libs/*-all.jar app.jar
 COPY --from=sbom /app/sbom.spdx.json /app/sbom.spdx.json
@@ -34,6 +34,4 @@ COPY --from=sbom /app/sbom.spdx.json /app/sbom.spdx.json
 RUN groupadd -r Kepler && useradd -r -g Kepler Kepler
 RUN chown -R Kepler:Kepler /app
 USER Kepler
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD java -cp app.jar com.ido.HelloWorld || exit 1
 ENTRYPOINT ["java", "-jar", "app.jar"]
