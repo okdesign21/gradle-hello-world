@@ -9,13 +9,20 @@ COPY --from=build /app/build/libs/*-all.jar app.jar
 RUN trivy fs --format spdx-json --output /app/sbom.spdx.json /app/app.jar
 
 FROM gcr.io/projectsigstore/cosign:latest AS cosign
-ENV COSIGN_EXPERIMENTAL=1
 WORKDIR /app
 COPY --from=build /app/build/libs/*-all.jar app.jar
 COPY --from=sbom /app/sbom.spdx.json /app/sbom.spdx.json
-RUN cosign sign-blob --yes \
+ARG COSIGN_KEY
+ARG COSIGN_PASSWORD
+ENV COSIGN_PASSWORD=${COSIGN_PASSWORD}
+RUN test -n "$COSIGN_KEY" || (echo "ERROR: COSIGN_KEY is required" && exit 1) && \
+    test -n "$COSIGN_PASSWORD" || (echo "ERROR: COSIGN_PASSWORD is required" && exit 1)
+RUN echo "$COSIGN_KEY" > /tmp/cosign.key && \
+    cosign sign-blob --yes \
+      --key /tmp/cosign.key \
       --output-signature=app.jar.sig \
-      app.jar
+      app.jar && \
+    rm -f /tmp/cosign.key
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app

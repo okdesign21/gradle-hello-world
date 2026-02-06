@@ -1,20 +1,18 @@
+---
 name: Java CI with Gradle
 
 on:
   push:
-    # version bump + build + publish
     branches: ["master"]
   pull_request:
-    # tests + build
   workflow_dispatch:
-    # manual trigger for testing, like pull_request
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: true
 
 env:
-  JAVA_VERSION: '21'
+  JAVA_VERSION: "21"
   IMAGE_NAME: KeplerHello
   VCS_REF: ${{ github.sha }}
 
@@ -46,19 +44,27 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.33.1
         with:
-          scan-type: 'repo'
-          exit-code: '1'
+          scan-type: "repo"
+          exit-code: "1"
           ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'
-          output: 'trivy-report.txt'
+          severity: "CRITICAL,HIGH"
+          output: "trivy-report.txt"
 
       - name: TruffleHog Scan
         uses: trufflesecurity/trufflehog@main
         with:
           extra_args: --results=verified,unknown --fail
 
+      - name: Upload Security Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: trivy-report.txt,trufflehog-results.json
+
   tests:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -66,9 +72,9 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: "temurin"
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'gradle'
+          cache: "gradle"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
@@ -78,43 +84,56 @@ jobs:
 
   build-and-sign:
     runs-on: ubuntu-latest
-    needs: ['security-check', 'megalinter', 'tests']
+    needs: ["security-check", "megalinter", "tests"]
+    permissions:
+      contents: write
     outputs:
-      version: ${{ steps.bump.outputs.new-version }}
+      version: ${{ steps.bump.outputs.new_version }}
     if: github.ref == 'refs/heads/master'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: "temurin"
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'gradle'
-      
+          cache: "gradle"
+
       - name: Setup Gradle to generate and submit dependency graphs
         uses: gradle/actions/setup-gradle@v5
         with:
           dependency-graph: generate-and-submit
 
-        #TODO: fix, not updating build.gradle.kts 
-      - name: Bump version
+      - name: Bump version in build.gradle.kts
         id: bump
-        uses: Plugily-Projects/version-bump-action@v6
-        with:
-            github-token: ${{ secrets.GITHUB_TOKEN }}
-            auto-version-bump: true
-            auto-version-bump-release: true
+        run: |
+          # Increment only the patch number (X.Y.Z -> X.Y.Z+1) using awk
+          NEW_VERSION=$(grep '^version\s*=' build.gradle.kts | sed -E 's/.*"(.*)"/\1/' | awk -F. '{print $1"."$2"."$3+1}')
+          sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" build.gradle.kts
+          echo "new_version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
 
-        #TODO: pass cosign key and password via GitHub Secrets
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add build.gradle.kts
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }} [skip ci]"
+          git push
+
       - name: Build Docker image until cosign
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           target: cosign
           push: false
           tags: ${{ env.IMAGE_NAME }}-cosign:latest
+          build-args: |
+            COSIGN_KEY=${{ secrets.COSIGN_KEY }}
+            COSIGN_PASSWORD=${{ secrets.COSIGN_PASSWORD }}
 
       - name: Extract artifacts from cosign image
         run: |
@@ -126,7 +145,7 @@ jobs:
           docker rm extract
 
       - name: Build final image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: false
@@ -136,9 +155,9 @@ jobs:
         uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: ${{ env.IMAGE_NAME }}:latest
-          exit-code: '1'
+          exit-code: "1"
           ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'
+          severity: "CRITICAL,HIGH"
 
       - name: Save Docker image as tar
         run: docker save ${{ env.IMAGE_NAME }}:latest -o /tmp/docker-image.tar
@@ -149,7 +168,7 @@ jobs:
           name: docker-image
           path: /tmp/docker-image.tar
           retention-days: 1
-            
+
       - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
@@ -171,6 +190,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: build-and-sign
+    permissions:
+      contents: read
     if: github.ref == 'refs/heads/master'
     env:
       VERSION: ${{ needs.build-and-sign.outputs.version }}
@@ -185,7 +206,7 @@ jobs:
         run: docker load -i /tmp/docker-image.tar
 
       - name: DockerHub login
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -200,10 +221,12 @@ jobs:
           docker push ${{ env.DOCKERHUB_REPO }}:latest
           docker push ${{ env.DOCKERHUB_REPO }}:${{ env.VERSION }}
           docker push ${{ env.DOCKERHUB_REPO }}:${{ env.VCS_REF }}
-  
+
   call-home:
     runs-on: ubuntu-latest
     needs: publish
+    permissions:
+      contents: read
     if: github.ref == 'refs/heads/master'
     steps:
       - name: call home

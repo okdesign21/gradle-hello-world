@@ -8,7 +8,8 @@ plugins {
     id("org.graalvm.buildtools.native") version "0.11.1"
 
     // This creates a fat JAR
-    id("com.gradleup.shadow") version "9.3.1"}
+    id("com.gradleup.shadow") version "9.3.1"
+}
 
 group = "com.ido"
 version = "1.0.0"
@@ -28,10 +29,12 @@ graalvmNative {
             fallback.set(false)
             sharedLibrary.set(false)
             useFatJar.set(true)
-            javaLauncher.set(javaToolchains.launcherFor {
-                languageVersion.set(JavaLanguageVersion.of(21))
-                vendor.set(JvmVendorSpec.matching("GraalVM Community"))
-            })
+            javaLauncher.set(
+                javaToolchains.launcherFor {
+                    languageVersion.set(JavaLanguageVersion.of(21))
+                    vendor.set(JvmVendorSpec.matching("GraalVM Community"))
+                },
+            )
         }
     }
 }
