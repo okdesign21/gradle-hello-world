@@ -38,11 +38,10 @@ jobs:
           DISABLE: SPELL
           BASH_SHELLCHECK_FILTER_REGEX_EXCLUDE: "gradlew"
           BASH_SHFMT_FILTER_REGEX_EXCLUDE: "gradlew"
-          DISABLE_LINTER: REPOSITORY_CHECKOV, REPOSITORY_GRYPE
+          DISABLE_LINTER: REPOSITORY_CHECKOV, REPOSITORY_GRYPE, REPOSITORY_TRIVY, REPOSITORY_TRUFFLEHOG
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   security-check:
-    # Might be redundent with the megalinter job
     runs-on: ubuntu-latest
     steps:
       - name: checkout code
@@ -216,6 +215,11 @@ jobs:
           docker push ${{ env.DOCKERHUB_REPO }}:latest
           docker push ${{ env.DOCKERHUB_REPO }}:${{ env.VERSION }}
           docker push ${{ env.DOCKERHUB_REPO }}:${{ env.VCS_REF }}
+
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Commit version bump
         run: |

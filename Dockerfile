@@ -1,18 +1,16 @@
 FROM gradle:jdk21 AS build
 WORKDIR /app
-COPY src/ /app
-COPY gradle/ /app/gradle
-COPY build.gradle.kts /app
-COPY gradlew /app/
-COPY gradlew.bat /app
+COPY gradle/ gradle/
+COPY gradlew build.gradle.kts ./
+COPY src/ src/
 RUN ./gradlew build --no-daemon
 
-FROM aquasec/trivy:latest AS sbom
+FROM aquasec/trivy:0.69.1 AS sbom
 WORKDIR /app
 COPY --from=build /app/build/libs/*-all.jar app.jar
 RUN trivy fs --format spdx-json --output /app/sbom.spdx.json /app/app.jar
 
-FROM gcr.io/projectsigstore/cosign:latest AS cosign
+FROM bitnami/cosign:3.0.4 AS cosign
 WORKDIR /app
 COPY --from=build /app/build/libs/*-all.jar app.jar
 COPY --from=sbom /app/sbom.spdx.json /app/sbom.spdx.json
