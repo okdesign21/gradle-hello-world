@@ -11,6 +11,9 @@ concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
   JAVA_VERSION: "21"
   IMAGE_NAME: KeplerHello
@@ -34,12 +37,11 @@ jobs:
           FLAVOR_SUGGESTIONS: false
           DISABLE: SPELL
           BASH_SHELLCHECK_FILTER_REGEX_EXCLUDE: "gradlew"
+          BASH_SHFMT_FILTER_REGEX_EXCLUDE: "gradlew"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   security-check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - name: checkout code
         uses: actions/checkout@v4
@@ -66,8 +68,6 @@ jobs:
 
   tests:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -193,8 +193,6 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: build-and-sign
-    permissions:
-      contents: read
     if: github.ref_name == 'master'
     env:
       VERSION: ${{ needs.build-and-sign.outputs.version }}
