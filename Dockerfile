@@ -34,4 +34,6 @@ COPY --from=sbom /app/sbom.spdx.json /app/sbom.spdx.json
 RUN groupadd -r Kepler && useradd -r -g Kepler Kepler
 RUN chown -R Kepler:Kepler /app
 USER Kepler
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD java -cp app.jar com.ido.HelloWorld || exit 1
 ENTRYPOINT ["java", "-jar", "app.jar"]
