@@ -2,6 +2,7 @@
 # MegaLinter Configuration
 VALIDATE_ALL_CODEBASE: true
 FLAVOR_SUGGESTIONS: false
+SHOW_ELAPSED_TIME: true
 
 DISABLE:
   - SPELL

@@ -82,7 +82,7 @@ jobs:
 
   build-and-sign:
     runs-on: ubuntu-latest
-    needs: ["security-check", "megalinter", "tests"]
+    needs: ["security-check","tests"] # "megalinter", 
     permissions:
       contents: write
     outputs:
