@@ -20,7 +20,7 @@ jobs:
   megalinter:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
@@ -33,6 +33,7 @@ jobs:
           VALIDATE_ALL_CODEBASE: true
           FLAVOR_SUGGESTIONS: false
           DISABLE: SPELL
+          BASH_SHELLCHECK_FILTER_REGEX_EXCLUDE: "gradlew"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   security-check:
