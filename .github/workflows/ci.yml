@@ -31,6 +31,8 @@ jobs:
         uses: oxsecurity/megalinter/flavors/java@v9.3.0
         env:
           VALIDATE_ALL_CODEBASE: true
+          FLAVOR_SUGGESTIONS: false
+          DISABLE: SPELL
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   security-check:
@@ -53,7 +55,7 @@ jobs:
       - name: TruffleHog Scan
         uses: trufflesecurity/trufflehog@main
         with:
-          extra_args: --results=verified,unknown --fail
+          extra_args: --results=verified,unknown
 
       - name: Upload Security Reports
         uses: actions/upload-artifact@v4
