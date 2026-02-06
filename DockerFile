@@ -1,6 +1,10 @@
 FROM gradle:jdk21 AS build
 WORKDIR /app
-COPY . /app
+COPY src/ /app
+COPY gradle/ /app/gradle
+COPY build.gradle.kts /app
+COPY gradlew /app/
+COPY gradlew.bat /app
 RUN ./gradlew build --no-daemon
 
 FROM aquasec/trivy:latest AS sbom

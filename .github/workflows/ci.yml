@@ -38,9 +38,11 @@ jobs:
           DISABLE: SPELL
           BASH_SHELLCHECK_FILTER_REGEX_EXCLUDE: "gradlew"
           BASH_SHFMT_FILTER_REGEX_EXCLUDE: "gradlew"
+          DISABLE_LINTER: REPOSITORY_CHECKOV, REPOSITORY_GRYPE
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   security-check:
+    # Might be redundent with the megalinter job
     runs-on: ubuntu-latest
     steps:
       - name: checkout code
