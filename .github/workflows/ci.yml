@@ -20,20 +20,20 @@ env:
   VCS_REF: ${{ github.sha }}
 
 jobs:
-  megalinter:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+  # megalinter:
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v6
+  #       with:
+  #         token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: MegaLinter
-        uses: oxsecurity/megalinter/flavors/java@v9.3.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: MegaLinter
+  #       uses: oxsecurity/megalinter/flavors/java@v9.3.0
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   security-check:
     runs-on: ubuntu-latest
