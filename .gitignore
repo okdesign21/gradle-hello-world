@@ -23,9 +23,14 @@ gradle-app.setting
 # MacOS files
 .DS_Store
 
+# tmps
+.cache/
+tmp/
+
 # MegaLinter
 megalinter-reports/
 
 # keys
 *.key
 *.pem
+.secrets

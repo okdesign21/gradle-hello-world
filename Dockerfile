@@ -3,6 +3,12 @@ WORKDIR /app
 COPY gradle/ gradle/
 COPY gradlew build.gradle.kts ./
 COPY src/ src/
+
+# Bump version
+RUN NEW_VERSION=$(grep '^version\s*=' build.gradle.kts | sed -E 's/.*"(.*)"/\1/' | awk -F. '{print $1"."$2"."$3+1}') && \
+    sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" build.gradle.kts && \
+    echo "${NEW_VERSION}" > /app/VERSION.txt
+
 RUN ./gradlew build --no-daemon
 
 FROM aquasec/trivy:0.69.1 AS sbom
@@ -19,15 +25,16 @@ ARG COSIGN_PASSWORD
 ENV COSIGN_PASSWORD=${COSIGN_PASSWORD}
 RUN test -n "$COSIGN_KEY" || (echo "ERROR: COSIGN_KEY is required" && exit 1) && \
     test -n "$COSIGN_PASSWORD" || (echo "ERROR: COSIGN_PASSWORD is required" && exit 1)
-RUN echo "$COSIGN_KEY" | cosign sign-blob --yes \
+RUN printf "%b" "$COSIGN_KEY" | cosign sign-blob --yes \
       --key /dev/stdin \
-      --output-signature=app.jar.sig \
+      --bundle app.jar.bundle \
       app.jar
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
+COPY --from=build /app/VERSION.txt VERSION.txt
 COPY --from=cosign /app/app.jar app.jar
-COPY --from=cosign /app/app.jar.sig app.jar.sig
+COPY --from=cosign /app/app.jar.bundle app.jar.bundle
 COPY --from=sbom /app/sbom.spdx.json /app/sbom.spdx.json
 RUN groupadd -r Kepler && useradd -r -g Kepler Kepler
 RUN chown -R Kepler:Kepler /app
