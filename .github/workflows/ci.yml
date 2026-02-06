@@ -58,7 +58,7 @@ jobs:
           extra_args: --results=verified,unknown
 
       - name: Upload Security Reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: security-reports
           path: trivy-report.txt,trufflehog-results.json
@@ -91,7 +91,7 @@ jobs:
       contents: write
     outputs:
       version: ${{ steps.bump.outputs.new_version }}
-    if: github.ref == 'refs/heads/master'
+    if: github.ref_name == 'master'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -165,26 +165,26 @@ jobs:
         run: docker save ${{ env.IMAGE_NAME }}:latest -o /tmp/docker-image.tar
 
       - name: Upload Docker image artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: docker-image
           path: /tmp/docker-image.tar
           retention-days: 1
 
       - name: Upload JAR
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: jar-artifact
           path: build/libs/*-all.jar
 
       - name: Upload JAR Signature
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: jar-signature-artifact
           path: build/libs/app.jar.sig
 
       - name: Upload SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sbom-artifact
           path: build/sbom/sbom.spdx.json
@@ -194,12 +194,12 @@ jobs:
     needs: build-and-sign
     permissions:
       contents: read
-    if: github.ref == 'refs/heads/master'
+    if: github.ref_name == 'master'
     env:
       VERSION: ${{ needs.build-and-sign.outputs.version }}
     steps:
       - name: Download Docker image artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: docker-image
           path: /tmp
@@ -229,7 +229,7 @@ jobs:
     needs: publish
     permissions:
       contents: read
-    if: github.ref == 'refs/heads/master'
+    if: github.ref_name == 'master'
     steps:
       - name: call home
         env:
