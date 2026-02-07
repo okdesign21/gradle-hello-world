@@ -26,6 +26,7 @@
     "softprops",
     "temurin",
     "sigstore",
+    "actrc",
     "trufflesecurity"
   ]
 }
