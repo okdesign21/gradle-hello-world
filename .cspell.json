@@ -25,6 +25,7 @@
     "pipefail",
     "softprops",
     "temurin",
+    "sigstore",
     "trufflesecurity"
   ]
 }
