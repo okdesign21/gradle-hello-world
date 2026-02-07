@@ -18,6 +18,7 @@ COPY --from=build /app/build/libs/*-all.jar app.jar
 RUN trivy fs --format spdx-json --output /app/sbom.spdx.json /app/app.jar
 
 FROM bitnami/cosign:latest AS cosign
+USER root
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-c"]
 WORKDIR /app
 COPY --from=build /app/build/libs/*-all.jar app.jar
@@ -26,10 +27,6 @@ RUN --mount=type=secret,id=cosign_key \
     --mount=type=secret,id=cosign_password \
     test -s /run/secrets/cosign_key || (echo "ERROR: COSIGN_KEY is required" && exit 1) && \
     test -s /run/secrets/cosign_password || (echo "ERROR: COSIGN_PASSWORD is required" && exit 1) && \
-    # Key debugging
-    echo "Key file size: $(wc -c < /run/secrets/cosign_key) bytes" && \
-    head -1 /run/secrets/cosign_key && \
-    ######
     COSIGN_PASSWORD=$(cat /run/secrets/cosign_password) cosign sign-blob --yes \
       --key /run/secrets/cosign_key \
       --bundle app.jar.bundle \
