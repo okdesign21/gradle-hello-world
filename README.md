@@ -53,3 +53,4 @@ The following are produced during the build and included in the release:
 - `app.jar.bundle`: Signed JAR bundle (signed with Cosign).
 - `sbom.spdx.json`: Software Bill of Materials for security/compliance.
 - Security reports: Trivy and TruffleHog scan outputs.
+
