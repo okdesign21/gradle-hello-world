@@ -124,8 +124,6 @@ jobs:
           context: .
           push: false
           tags: ${{ env.IMAGE_NAME }}:latest
-          build-args: |
-            DEBUG_SECRETS=1
           secrets: |
             cosign_key=${{ secrets.COSIGN_KEY }}
             cosign_password=${{ secrets.COSIGN_PASSWORD }}
@@ -217,9 +215,11 @@ jobs:
         run: |
           test -n "${COSIGN_KEY}" || (echo "ERROR: COSIGN_KEY is required" && exit 1)
           test -n "${COSIGN_PASSWORD}" || (echo "ERROR: COSIGN_PASSWORD is required" && exit 1)
-          COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --key <(printf "%b" "${COSIGN_KEY}") --yes "$DOCKERHUB_REPO:latest"
-          COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --key <(printf "%b" "${COSIGN_KEY}") --yes "$DOCKERHUB_REPO:$VERSION"
-          COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --key <(printf "%b" "${COSIGN_KEY}") --yes "$DOCKERHUB_REPO:$VCS_REF"
+          echo "${COSIGN_KEY}" | base64 -d > /tmp/cosign_key.pem
+          COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --key /tmp/cosign_key.pem --yes "$DOCKERHUB_REPO:latest"
+          COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --key /tmp/cosign_key.pem --yes "$DOCKERHUB_REPO:$VERSION"
+          COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --key /tmp/cosign_key.pem --yes "$DOCKERHUB_REPO:$VCS_REF"
+          rm /tmp/cosign_key.pem
 
       - name: checkout code
         uses: actions/checkout@v4

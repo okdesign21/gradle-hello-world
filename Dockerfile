@@ -28,12 +28,12 @@ RUN --mount=type=secret,id=cosign_key \
     --mount=type=secret,id=cosign_password \
     test -s /run/secrets/cosign_key || (echo "ERROR: COSIGN_KEY is required" && exit 1) && \
     test -s /run/secrets/cosign_password || (echo "ERROR: COSIGN_PASSWORD is required" && exit 1) && \
-    echo "Decoding base64 key..." && \
     cat /run/secrets/cosign_key | base64 -d > /tmp/cosign_key.pem && \
     COSIGN_PASSWORD=$(cat /run/secrets/cosign_password) cosign sign-blob --yes \
       --key /tmp/cosign_key.pem \
       --bundle app.jar.bundle \
-      app.jar
+      app.jar && \
+    rm /tmp/cosign_key.pem
 USER 1001
 
 FROM eclipse-temurin:21-jre
