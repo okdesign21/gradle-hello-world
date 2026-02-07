@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Node.js (for act)
-        if: env.ACT
+        if: ${{ env.ACT }}
         run: |
           apt-get update
           apt-get install -y nodejs npm
@@ -96,7 +96,7 @@ jobs:
     if: github.ref_name == 'master'
     steps:
       - name: Install Node.js (for act)
-        if: env.ACT
+        if: ${{ env.ACT }}
         run: |
           apt-get update
           apt-get install -y nodejs npm
@@ -152,15 +152,6 @@ jobs:
           ignore-unfixed: true
           severity: "CRITICAL,HIGH"
 
-      - name: Sign image with Cosign
-        env:
-          COSIGN_KEY: ${{ secrets.COSIGN_KEY }}
-          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
-        run: |
-          printf "%b" "${COSIGN_KEY}"
-          cosign sign --key /dev/stdin --yes "$IMAGE_NAME:latest"
-
       - name: Save image as tar
         env:
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
@@ -212,6 +203,23 @@ jobs:
           docker push "$DOCKERHUB_REPO:latest"
           docker push "$DOCKERHUB_REPO:$VERSION"
           docker push "$DOCKERHUB_REPO:$VCS_REF"
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.7.0
+
+      - name: Sign images with Cosign
+        env:
+          COSIGN_KEY: ${{ secrets.COSIGN_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          DOCKERHUB_REPO: ${{ vars.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}
+          VERSION: ${{ env.VERSION }}
+          VCS_REF: ${{ env.VCS_REF }}
+        run: |
+          test -n "${COSIGN_KEY}" || (echo "ERROR: COSIGN_KEY is required" && exit 1)
+          test -n "${COSIGN_PASSWORD}" || (echo "ERROR: COSIGN_PASSWORD is required" && exit 1)
+          COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --key <(printf "%b" "${COSIGN_KEY}") --yes "$DOCKERHUB_REPO:latest"
+          COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --key <(printf "%b" "${COSIGN_KEY}") --yes "$DOCKERHUB_REPO:$VERSION"
+          COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --key <(printf "%b" "${COSIGN_KEY}") --yes "$DOCKERHUB_REPO:$VCS_REF"
 
       - name: checkout code
         uses: actions/checkout@v4
@@ -279,7 +287,6 @@ jobs:
           body: |
             Automated release of version ${{ env.VERSION }}
           files: |
-            /tmp/docker-image.tar
             /tmp/sbom.spdx.json
             /tmp/app.jar
             /tmp/app.jar.bundle

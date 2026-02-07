@@ -22,13 +22,12 @@ SHELL ["/bin/bash", "-o", "pipefail", "-e", "-c"]
 WORKDIR /app
 COPY --from=build /app/build/libs/*-all.jar app.jar
 COPY --from=sbom /app/sbom.spdx.json /app/sbom.spdx.json
-ARG COSIGN_KEY
-ARG COSIGN_PASSWORD
-ENV COSIGN_PASSWORD=${COSIGN_PASSWORD}
-RUN test -n "$COSIGN_KEY" || (echo "ERROR: COSIGN_KEY is required" && exit 1) && \
-    test -n "$COSIGN_PASSWORD" || (echo "ERROR: COSIGN_PASSWORD is required" && exit 1)
-RUN printf "%b" "$COSIGN_KEY" | cosign sign-blob --yes \
-      --key /dev/stdin \
+RUN --mount=type=secret,id=cosign_key,uid=1001 \
+    --mount=type=secret,id=cosign_password,uid=1001 \
+    test -s /run/secrets/cosign_key || (echo "ERROR: COSIGN_KEY is required" && exit 1) && \
+    test -s /run/secrets/cosign_password || (echo "ERROR: COSIGN_PASSWORD is required" && exit 1) && \
+    COSIGN_PASSWORD=$(cat /run/secrets/cosign_password) cosign sign-blob --yes \
+      --key /run/secrets/cosign_key \
       --bundle app.jar.bundle \
       app.jar
 
