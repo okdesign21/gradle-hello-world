@@ -18,6 +18,7 @@ COPY --from=build /app/build/libs/*-all.jar app.jar
 RUN trivy fs --format spdx-json --output /app/sbom.spdx.json /app/app.jar
 
 FROM bitnami/cosign:latest AS cosign
+ARG DEBUG_SECRETS=0
 USER root
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-c"]
 WORKDIR /app
@@ -25,6 +26,13 @@ COPY --from=build /app/build/libs/*-all.jar app.jar
 COPY --from=sbom /app/sbom.spdx.json /app/sbom.spdx.json
 RUN --mount=type=secret,id=cosign_key \
     --mount=type=secret,id=cosign_password \
+        if [ "$DEBUG_SECRETS" = "1" ]; then \
+            echo "DEBUG: user=$(id -u):$(id -g)"; \
+            ls -l /run/secrets; \
+            echo "DEBUG: cosign_key bytes=$(wc -c < /run/secrets/cosign_key)"; \
+            echo "DEBUG: cosign_key sha256=$(sha256sum /run/secrets/cosign_key | cut -d' ' -f1)"; \
+            echo "DEBUG: cosign_password bytes=$(wc -c < /run/secrets/cosign_password)"; \
+        fi && \
     test -s /run/secrets/cosign_key || (echo "ERROR: COSIGN_KEY is required" && exit 1) && \
     test -s /run/secrets/cosign_password || (echo "ERROR: COSIGN_PASSWORD is required" && exit 1) && \
     COSIGN_PASSWORD=$(cat /run/secrets/cosign_password) cosign sign-blob --yes \
