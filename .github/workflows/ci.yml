@@ -69,10 +69,10 @@ jobs:
         run: |
           apt-get update
           apt-get install -y nodejs npm
-      
+
       - name: Checkout code
-        uses: actions/checkout@v4      
-      
+        uses: actions/checkout@v4
+
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -158,7 +158,8 @@ jobs:
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
         run: |
-          printf "%b" "${COSIGN_KEY}" | cosign sign --key /dev/stdin --yes "$IMAGE_NAME:latest"
+          printf "%b" "${COSIGN_KEY}"
+          cosign sign --key /dev/stdin --yes "$IMAGE_NAME:latest"
 
       - name: Save image as tar
         env:
