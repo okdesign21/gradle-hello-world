@@ -1,18 +1,48 @@
-# gradle-hello-world
-# Java Hello World using the Gradle Wrapper and the Kotlin DSL
-This is a Hello World project that contains the most important parts of the Gradle build scripts.
+# Gradle Hello World
 
-# Tasks
-```
-build - Compiles Hello World and creates JAR files.
-2 jar files will be created:
-- gradle-hello-world-all.jar - this jar contains everything.
-- gradle-hello-world.jar - this is regular jar, it contains only the project's classes.
-```
+This repository contains a simple Java "Hello World" application using Gradle as the build tool.
 
-# Build
-```
-./gradlew build
-The jar files located ar gradle-hello-world/build/libs/
-make the runnable jar executable then, use "java -jar gradle-hello-world-all.jar"
-```
+## Project Structure
+- `src/main/java/com/ido/HelloWorld.java`: Main Java source file.
+- `build.gradle.kts`: Gradle build configuration (Kotlin DSL).
+- `Dockerfile`: Containerization setup for the app.
+- `.github/workflows/ci.yml`: GitHub Actions CI workflow.
+- `.mega-linter.yml`: MegaLinter configuration file.
+
+## Docker
+
+Multi-stage build with:
+- Build stage: Compiles app and bumps patch version.
+- SBOM stage: Generates SPDX Bill of Materials using Trivy.
+- Cosign stage: Signs JAR with Cosign key and password.
+- Final stage: Runs app as non-root `Kepler` user on JRE 21.
+
+## CI
+
+The CI pipeline is managed with GitHub Actions (`.github/workflows/ci.yml`). It runs on pull requests, pushes to master, and can be manually triggered.
+
+### Workflow Steps
+
+**All Branches (PR/Push):**
+- Runs MegaLinter for code quality and style checks.
+- Performs security scans (Trivy, TruffleHog) and uploads reports.
+- Executes unit tests using Gradle.
+
+**Master Branch Only:**
+- Builds the Docker image.
+- Signs the Docker image with Cosign for authenticity and integrity.
+- Extracts and uploads build artifacts: `app.jar`, `app.jar.bundle`, `sbom.spdx.json`, and the Docker image as tar.
+- Runs Trivy scan on the built image.
+- Publishes the Docker image to DockerHub with multiple tags (latest, version, commit SHA).
+- Bumps the project version in `build.gradle.kts` and commits it.
+- Calls home by running the built container and validating its output.
+- Creates a GitHub Release with all artifacts attached.
+
+### Build Artifacts
+
+The following are produced during the build and included in the release:
+- `app.jar`: The compiled Java application.
+- `app.jar.bundle`: Signed JAR bundle (signed with Cosign).
+- `sbom.spdx.json`: Software Bill of Materials for security/compliance.
+- `docker-image.tar`: Docker image archive.
+- Security reports: Trivy and TruffleHog scan outputs.

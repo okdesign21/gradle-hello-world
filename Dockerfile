@@ -1,4 +1,5 @@
 FROM gradle:jdk21 AS build
+SHELL ["/bin/bash", "-o", "pipefail", "-e", "-c"]
 WORKDIR /app
 COPY gradle/ gradle/
 COPY gradlew build.gradle.kts ./
@@ -17,6 +18,7 @@ COPY --from=build /app/build/libs/*-all.jar app.jar
 RUN trivy fs --format spdx-json --output /app/sbom.spdx.json /app/app.jar
 
 FROM bitnami/cosign:latest AS cosign
+SHELL ["/bin/bash", "-o", "pipefail", "-e", "-c"]
 WORKDIR /app
 COPY --from=build /app/build/libs/*-all.jar app.jar
 COPY --from=sbom /app/sbom.spdx.json /app/sbom.spdx.json

@@ -69,10 +69,10 @@ jobs:
         run: |
           apt-get update
           apt-get install -y nodejs npm
-
+      
       - name: Checkout code
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@v4      
+      
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -282,4 +282,3 @@ jobs:
             /tmp/sbom.spdx.json
             /tmp/app.jar
             /tmp/app.jar.bundle
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
