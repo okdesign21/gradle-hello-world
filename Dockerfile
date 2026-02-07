@@ -1,3 +1,4 @@
+# Gradle image for building the application
 FROM gradle:jdk21 AS build
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-c"]
 WORKDIR /app
@@ -12,11 +13,14 @@ RUN NEW_VERSION=$(grep '^version\s*=' build.gradle.kts | sed -E 's/.*"(.*)"/\1/'
 
 RUN ./gradlew build --no-daemon
 
+# Generate SBOM using Trivy
 FROM aquasec/trivy:0.69.1 AS sbom
 WORKDIR /app
 COPY --from=build /app/build/libs/*-all.jar app.jar
 RUN trivy fs --format spdx-json --output /app/sbom.spdx.json /app/app.jar
 
+# Sign the application using Cosign
+# Key and password are passed as secrets, key in Base64.
 FROM bitnami/cosign:latest AS cosign
 ARG DEBUG_SECRETS=0
 USER root
@@ -36,6 +40,7 @@ RUN --mount=type=secret,id=cosign_key \
     rm /tmp/cosign_key.pem
 USER 1001
 
+# Final image for running the application + creating non-root user
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/VERSION.txt VERSION.txt
