@@ -1,0 +1,3 @@
+--secret cosign_key=/Users/orinbar/infinity/gradle-hello-world/.secrets-dir/cosign_key
+--secret cosign_password=/Users/orinbar/infinity/gradle-hello-world/.secrets-dir/cosign_password
+--env-file /Users/orinbar/infinity/gradle-hello-world/.secrets-dir/github_token_env

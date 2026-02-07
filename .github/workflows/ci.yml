@@ -125,7 +125,6 @@ jobs:
           push: false
           tags: ${{ env.IMAGE_NAME }}:latest
           build-args: |
-            COSIGN_PASSWORD=${{ secrets.COSIGN_PASSWORD }}
             DEBUG_SECRETS=1
           secrets: |
             cosign_key=${{ secrets.COSIGN_KEY }}

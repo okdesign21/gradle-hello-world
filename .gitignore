@@ -34,3 +34,4 @@ megalinter-reports/
 *.key
 *.pem
 .secrets
+.secrets-dir/
