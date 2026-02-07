@@ -38,7 +38,8 @@ RUN --mount=type=secret,id=cosign_key \
         fi && \
     test -s /run/secrets/cosign_key || (echo "ERROR: COSIGN_KEY is required" && exit 1) && \
     test -s /run/secrets/cosign_password || (echo "ERROR: COSIGN_PASSWORD is required" && exit 1) && \
-    tr -d '\r' < /run/secrets/cosign_key > /tmp/cosign_key.pem && \
+    cat /run/secrets/cosign_key > /tmp/cosign_key.pem && \
+    echo "" >> /tmp/cosign_key.pem && \
     COSIGN_PASSWORD=$(cat /run/secrets/cosign_password) cosign sign-blob --yes \
       --key /tmp/cosign_key.pem \
       --bundle app.jar.bundle \
