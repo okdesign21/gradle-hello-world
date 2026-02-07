@@ -8,7 +8,9 @@ This repository contains a simple Java "Hello World" application using Gradle as
 - `build.gradle.kts`: Gradle build configuration (Kotlin DSL).
 - `Dockerfile`: Containerization setup for the app.
 - `.github/workflows/ci.yml`: GitHub Actions CI workflow.
+- `.github/dependabot.yaml`: GitHub Dependabot.
 - `.mega-linter.yml`: MegaLinter configuration file.
+- `.actrc`: Act configuration for secrets.
 - `.cspell.json`: for CSpeel in MegaLinter.
 
 ## Docker
